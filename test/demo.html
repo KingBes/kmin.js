@@ -5,15 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="../src/kmin.css">
-    <!-- <script src="../src/kmin.js"></script> -->
+    <script src="../src/kmin.js"></script>
 </head>
 
 <body>
     <demo-ui></demo-ui>
     <script type="module">
-        import KMin from '../src/kmin.js';
+        // import KMin from '../src/kmin.js';
         /* import './km-demo.js';
         import 'http://127.0.0.1:8787/'; */
         // console.log(demo());
@@ -38,6 +38,15 @@
             reset() {
                 this.data.count = 0;
                 console.log(this.data.count)
+            }
+
+            // css
+            css(){
+                return `
+                span{
+                    color: red;
+                }
+                `
             }
             // 渲染
             render() {
