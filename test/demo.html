@@ -7,13 +7,13 @@
     <title>Document</title>
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="../src/kmin.css">
-    <script src="../src/kmin.js"></script>
+    <!-- <script src="../src/kmin.js"></script> -->
 </head>
 
 <body>
     <demo-ui></demo-ui>
     <script type="module">
-        // import KMin from '../src/kmin.js';
+        import KMin from '../src/kmin.js';
         /* import './km-demo.js';
         import 'http://127.0.0.1:8787/'; */
         // console.log(demo());
@@ -41,7 +41,7 @@
             }
 
             // css
-            css(){
+            css() {
                 return `
                 span{
                     color: red;

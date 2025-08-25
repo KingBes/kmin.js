@@ -1,4 +1,4 @@
-<template name="demo-ui">
+<template>
     <div class="counter">
         <button @click="decrement">-</button>
         <span>Count: {{data.count}}</span>
@@ -7,7 +7,7 @@
     <button @click="reset">Reset</button>
 </template>
 <script type="module">
-    export default class extends KMin {
+    customElements.define('demo-ui', class extends KMin {
         // 定义动态数据
         data = this.state({
             count: 0
@@ -28,8 +28,7 @@
             this.data.count = 0;
             console.log(this.data.count)
         }
-    }
-    // customElements.define('demo-ui', DemoUI)
+    })
 </script>
 <style>
     span {
