@@ -1,7 +1,39 @@
 /**
+ * 引入组件模板
+ * 
+ * @param {string} url 组件路径
+ * @returns {Promise<void>}
+ */
+async function impComp(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch component: ${response.statusText}`);
+        }
+        const parser = new DOMParser();
+        const dom = parser.parseFromString(await response.text(), 'text/html');
+        let script = dom.querySelector('script').innerHTML;
+        script = script.replace(/\s*class\s*extends\s*KMin\s*{/g, `class extends KMin {
+            css() {
+                return \`${dom.querySelector('style').innerHTML}\`;
+            }
+            render() {
+                return \`${dom.querySelector('template').innerHTML}\`;
+            }
+            `);
+        const newScript = document.createElement('script');
+        newScript.type = 'module';
+        newScript.textContent = script;
+        document.body.appendChild(newScript);
+    } catch (error) {
+        console.error('Error fetching the component:', error);
+    }
+}
+
+/**
  * 自定义组件
  */
-export default class KMin extends HTMLElement {
+class KMin extends HTMLElement {
     /**
      * 自定义元素的构造函数
      */

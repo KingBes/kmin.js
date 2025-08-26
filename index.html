@@ -4,18 +4,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>kmin.js</title>
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="./src/kmin.css">
-    <script src="./src/kmin.js"></script>
+    <script src="./dist/kmin.min.js"></script>
 
 </head>
 
 <body>
-    <km-button>
-        <span slot="km-text">默认按钮</span>
-    </km-button>
+    <km-main></km-main>
+    <script>
+        customElements.define('km-main', class extends KMin {
+            css() {
+                return `
+                div{
+                    color: red;
+                }
+                `
+            }
 
+            render() {
+                return `
+                <div>
+                   hello {{data.name}}
+                </div>
+                `
+            }
+
+            constructor() {
+                super();
+                this.data = this.state({
+                    name: 'world',
+                })
+            }
+        })
+    </script>
 </body>
 
 </html>

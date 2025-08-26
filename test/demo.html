@@ -7,21 +7,24 @@
     <title>Document</title>
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="../src/kmin.css">
-    <!-- <script src="../src/kmin.js"></script> -->
+    <script src="../dist/kmin.min.js"></script>
 </head>
 
 <body>
     <demo-ui></demo-ui>
+    <demo-ui2></demo-ui2>
     <script type="module">
-        import KMin from '../src/kmin.js';
+        // import { KMin, impComp } from '../src/kmin.js';
+        impComp('./php-demo.html');
+
         /* import './km-demo.js';
         import 'http://127.0.0.1:8787/'; */
         // console.log(demo());
         customElements.define('demo-ui', class extends KMin {
-
             // 定义动态数据
             data = this.state({
-                count: 0
+                count: 0,
+                name: 'kmin',
             })
 
             // 增加
@@ -39,7 +42,6 @@
                 this.data.count = 0;
                 console.log(this.data.count)
             }
-
             // css
             css() {
                 return `
