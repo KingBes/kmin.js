@@ -1,7 +1,7 @@
 # kmin.js
 
 <center>
-    <img src="./logo.png" alt="kmin.js" />
+    <img width="300" src="./logo.png" alt="kmin.js" />
 </center>
 
 kmin.js 是一个基于 web component 的前端组件框架，它的目标是简化前端开发，提高开发效率。
