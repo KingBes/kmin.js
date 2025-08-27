@@ -104,8 +104,6 @@ class KMin extends HTMLElement {
                         this[data[1]].call(this, e);
                     }
                 })
-                // 移除临时属性
-                element.removeAttribute('data-event');
             })
         } else {
             const oldNode = domToVNode(parseHTML(this.shadowRoot.innerHTML));
