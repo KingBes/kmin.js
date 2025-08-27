@@ -9,7 +9,7 @@ kmin.js 是一个基于 web component 的前端组件框架，它的目标是简
 ## 安装
 
 ```html
-<script src="./kmin.js"></script>
+<script src="./kmin.min.js"></script>
 ```
 
 ## 示例
