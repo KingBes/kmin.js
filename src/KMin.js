@@ -10,15 +10,16 @@ async function impComp(url) {
         if (!response.ok) {
             throw new Error(`Failed to fetch component: ${response.statusText}`);
         }
-        const parser = new DOMParser();
-        const dom = parser.parseFromString(await response.text(), 'text/html');
+        const text = await response.text()
+        const dom = new DOMParser().parseFromString(text, 'text/html');
+        const template = text.match(/<template>([\s\S]*?)<\/template>/)[1];
         let script = dom.querySelector('script').innerHTML;
         script = script.replace(/\s*class\s*extends\s*KMin\s*{/g, `class extends KMin {
             css() {
                 return \`${dom.querySelector('style').innerHTML}\`;
             }
             render() {
-                return \`${dom.querySelector('template').innerHTML}\`;
+                return \`${template}\`;
             }
             `);
         const newScript = document.createElement('script');
