@@ -14,14 +14,9 @@ async function impComp(url) {
         const dom = new DOMParser().parseFromString(text, 'text/html');
         const template = text.match(/<template>([\s\S]*?)<\/template>/)[1];
         let script = dom.querySelector('script').innerHTML;
-        script = script.replace(/\s*class\s*extends\s*KMin\s*{/g, `class extends KMin {
-            css() {
-                return \`${dom.querySelector('style').innerHTML}\`;
-            }
-            render() {
-                return \`${template}\`;
-            }
-            `);
+        script = script
+            .replace(/\s*class\s*extends\s*KMin\s*{/g,
+                `class extends KMin { css() { return \`${dom.querySelector('style').innerHTML}\`; } render() { return \`${template}\`; } `);
         const newScript = document.createElement('script');
         newScript.type = 'module';
         newScript.textContent = script;
@@ -35,6 +30,7 @@ async function impComp(url) {
  * 自定义组件
  */
 class KMin extends HTMLElement {
+
     /**
      * 自定义元素的构造函数
      */
@@ -48,6 +44,7 @@ class KMin extends HTMLElement {
         sheet.replaceSync(this.css());
         this.shadowRoot.adoptedStyleSheets = [sheet];
         this.firstRender = true; // 首次渲染
+        this.eventListeners = []; // 事件存储器
     }
 
     /**
@@ -95,22 +92,33 @@ class KMin extends HTMLElement {
         if (this.firstRender) {
             this.firstRender = false;
             this.shadowRoot.innerHTML = this.#tpl(template);
-            // 事件绑定处理
-            let eventHandlers = this.shadowRoot.querySelectorAll('[data-event]');
-            eventHandlers.forEach((element) => {
-                const data = element.getAttribute('data-event').split(",");
-                element.addEventListener(data[0], (e) => {
+        } else {
+            domDiff(this.shadowRoot.childNodes, parseHTML(this.#tpl(template)));
+        }
+        // 事件绑定处理
+        let eventHandlers = this.shadowRoot.querySelectorAll('[data-event]');
+        eventHandlers.forEach((element) => {
+            const data = element.getAttribute('data-event').split(",");
+            if (this.eventListeners.find((item) =>
+                item.element === element
+                && item.type === data[0])) {
+                return;
+            }
+            this.eventListeners.push({
+                element: element,
+                type: data[0],
+                handler: (e) => {
                     if (this[data[1]]) {
                         this[data[1]].call(this, e);
                     }
-                })
+                }
             })
-        } else {
-            const oldNode = domToVNode(parseHTML(this.shadowRoot.innerHTML));
-            const newNode = domToVNode(parseHTML(this.#tpl(template)));
-            const patches = diff(oldNode, newNode);
-            applyPatches(this.shadowRoot, patches);
-        }
+            element.addEventListener(data[0], (e) => {
+                if (this[data[1]]) {
+                    this[data[1]].call(this, e);
+                }
+            })
+        })
     }
 
     /**
@@ -151,9 +159,7 @@ class KMin extends HTMLElement {
             .replace(/\{\{(\w+(\.\w+)*)\}\}/g, "${kmHtml($1)}")
             // Html内容插入
             .replace(/\{\#html\s+(\w+(\.\w+)*)\}/g, "${kmHtml($1,false)}")
-        const str = `
-            let km_tpl = \`${template}\`;
-            return km_tpl;`
+        const str = `let km_tpl = \`${template}\`; return km_tpl;`
         try {
             const args = Object.keys(this);
             args.push('kmHtml');
@@ -254,252 +260,65 @@ function parseHTML(htmlString) {
 }
 
 /**
- * 虚拟DOM节点
- */
-class VNode {
-    /**
-     * 
-     * @param {string} tag 标签名
-     * @param {Object} attrs 属性
-     * @param {VNode[]} children 子节点
-     * @param {string} key 唯一标识
-     * @param {Element} el 真实DOM节点
-     */
-    constructor(tag, attrs = {}, children = [], key = null, el = null) {
-        this.tag = tag;
-        this.attrs = attrs;
-        this.children = children;
-        this.key = key;
-        this.el = el;
-    }
-}
-
-/**
- * 将DOM节点转换为虚拟DOM节点
+ * 对比两个DOM节点列表的差异
  * 
- * @param {NodeList} dom DOM节点列表
- * 
- * @returns {VNode[]} 虚拟DOM节点数组
+ * @param {NodeListOf<ChildNode>} oldDom 旧DOM节点列表
+ * @param {NodeListOf<ChildNode>} newDom 新DOM节点列表
  */
-function domToVNode(dom) {
-    let VNodeArray = [];
-    dom.forEach((node, index) => {
-        const tag = node.nodeName.toLowerCase();
-        const attrs = {};
-        if (node.attributes) {
-            for (let i = 0; i < node.attributes.length; i++) {
-                const attr = node.attributes[i];
-                attrs[attr.name] = attr.value;
-            }
-        }
-        // 处理子节点
-        const children = domToVNode(node.childNodes);
-        if (tag === '#text') {
-            VNodeArray.push(node.textContent)
-        } else {
-            VNodeArray.push(new VNode(
-                tag,
-                attrs,
-                children,
-                index,
-                node
-            ));
-        }
-    });
-    return VNodeArray;
-}
-/**
- * 对比两个虚拟DOM节点数组的差异
- * @param {VNode[]} oldVNodes 旧虚拟DOM节点数组
- * @param {VNode[]} newVNodes 新虚拟DOM节点数组
- * 
- * @returns {[]} 差异数组
- */
-function diff(oldVNodes, newVNodes) {
-    const patches = [];
-
-    // 首先遍历两个节点数组，找出更新和删除的节点
-    for (let i = 0; i < oldVNodes.length; i++) {
-        const oldNode = oldVNodes[i];
-        const newNode = newVNodes[i];
-
-        // 如果节点不存在，说明被删除了
-        if (!newNode) {
-            patches.push({
-                type: 'REMOVE',
-                index: i,
-                node: oldNode
-            });
+function domDiff(oldDoms, newDoms) {
+    for (let i = 0; i < oldDoms.length; i++) {
+        const oldDom = oldDoms[i];
+        const newDom = newDoms[i];
+        // 节点不存在
+        if (!newDom) {
+            oldDom.removeChild(oldDom.children[i]);
             continue;
         }
-
         // 文本节点比较
-        if (typeof oldNode === 'string' || typeof newNode === 'string') {
-            if (oldNode !== newNode) {
-                patches.push({
-                    type: 'UPDATE',
-                    index: i,
-                    oldNode: oldNode,
-                    newNode: newNode
-                });
+        if (oldDom.nodeType === 3 || newDom.nodeType === 3) {
+            if (oldDom.nodeValue !== newDom.nodeValue) {
+                oldDom.nodeValue = newDom.nodeValue;
             }
             continue;
         }
-
         // 标签名不同，直接替换
-        if (oldNode.tag !== newNode.tag) {
-            patches.push({
-                type: 'REPLACE',
-                index: i,
-                oldNode: oldNode,
-                newNode: newNode
-            });
+        if (oldDom.nodeName !== newDom.nodeName) {
+            oldDom.outerHTML = newDom.outerHTML;
             continue;
         }
-
-        // 比较属性
-        const attrsPatches = diffAttrs(oldNode.attrs, newNode.attrs);
-        if (Object.keys(attrsPatches).length > 0) {
-            patches.push({
-                type: 'ATTR',
-                index: i,
-                attrs: attrsPatches
-            });
+        // 属性比较
+        const oldAttrs = oldDom.attributes;
+        const newAttrs = newDom.attributes;
+        for (let j = 0; j < oldAttrs.length; j++) {
+            const oldAttr = oldAttrs[j];
+            const newAttr = newAttrs[j];
+            // 属性删除
+            if (!newAttrs[j]) {
+                oldDom.removeAttribute(oldAttr.name);
+                continue;
+            }
+            // 修改属性
+            if (oldAttr.name !== newAttr.name) {
+                oldDom.setAttribute(oldAttr.name, newAttr.value);
+            }
+            if (oldAttr.value !== newAttr.value) {
+                oldDom.setAttribute(oldAttr.name, newAttr.value);
+            }
         }
-
-        // 递归比较子节点
-        const childrenPatches = diff(oldNode.children, newNode.children);
-        if (childrenPatches.length > 0) {
-            patches.push({
-                type: 'CHILDREN',
-                index: i,
-                patches: childrenPatches
-            });
+        // 属性追加
+        for (let j = 0; j < newAttrs.length; j++) {
+            const newAttr = newAttrs[j];
+            if (!oldAttrs[j]) {
+                oldDom.setAttribute(newAttr.name, newAttr.value);
+            }
         }
+        // 子节点比较
+        domDiff(oldDom.childNodes, newDom.childNodes);
     }
-
-    // 检查新增的节点
-    for (let i = oldVNodes.length; i < newVNodes.length; i++) {
-        patches.push({
-            type: 'ADD',
-            index: i,
-            node: newVNodes[i]
-        });
-    }
-
-    return patches;
-}
-
-// 比较属性差异
-function diffAttrs(oldAttrs, newAttrs) {
-    const patches = {};
-
-    // 检查更改和新增的属性
-    for (let key in newAttrs) {
-        if (oldAttrs[key] !== newAttrs[key]) {
-            patches[key] = newAttrs[key];
+    // 检查新增节点
+    if (newDoms.length > oldDoms.length) {
+        for (let j = oldDoms.length; j < newDoms.length; j++) {
+            oldDoms[0].parentNode.appendChild(newDoms[j].cloneNode(true));
         }
     }
-
-    // 检查删除的属性
-    for (let key in oldAttrs) {
-        if (!newAttrs.hasOwnProperty(key)) {
-            patches[key] = undefined;
-        }
-    }
-
-    return patches;
-}
-
-// 应用补丁到真实DOM
-function applyPatches(node, patches) {
-    patches.forEach(patch => {
-        switch (patch.type) {
-            case 'ADD':
-                addNode(node, patch.index, patch.node);
-                break;
-            case 'REMOVE':
-                removeNode(node, patch.index, patch.node);
-                break;
-            case 'UPDATE':
-                updateNode(node, patch.index, patch.oldNode, patch.newNode);
-                break;
-            case 'REPLACE':
-                replaceNode(node, patch.index, patch.oldNode, patch.newNode);
-                break;
-            case 'ATTR':
-                updateAttrs(node, patch.index, patch.attrs);
-                break;
-            case 'CHILDREN':
-                applyPatches(node.childNodes[patch.index], patch.patches);
-                break;
-        }
-    });
-}
-
-// 添加节点
-function addNode(parent, index, newNode) {
-    const el = createElement(newNode);
-    if (index >= parent.childNodes.length) {
-        parent.appendChild(el);
-    } else {
-        parent.insertBefore(el, parent.childNodes[index]);
-    }
-}
-
-// 删除节点
-function removeNode(parent, index, node) {
-    if (parent.childNodes[index]) {
-        parent.removeChild(parent.childNodes[index]);
-    }
-}
-
-// 更新节点（文本节点）
-function updateNode(parent, index, oldNode, newNode) {
-    if (parent.childNodes[index]) {
-        parent.childNodes[index].textContent = newNode;
-    }
-}
-
-// 替换节点
-function replaceNode(parent, index, oldNode, newNode) {
-    if (parent.childNodes[index]) {
-        const el = createElement(newNode);
-        parent.replaceChild(el, parent.childNodes[index]);
-    }
-}
-
-// 更新属性
-function updateAttrs(parent, index, attrs) {
-    const node = parent.childNodes[index];
-    if (!node) return;
-
-    for (let key in attrs) {
-        if (attrs[key] === undefined) {
-            node.removeAttribute(key);
-        } else {
-            node.setAttribute(key, attrs[key]);
-        }
-    }
-}
-
-// 根据虚拟节点创建真实DOM元素
-function createElement(vnode) {
-    if (typeof vnode === 'string') {
-        return document.createTextNode(vnode);
-    }
-
-    const el = document.createElement(vnode.tag);
-
-    // 设置属性
-    for (let key in vnode.attrs) {
-        el.setAttribute(key, vnode.attrs[key]);
-    }
-
-    // 递归创建子节点
-    vnode.children.forEach(child => {
-        el.appendChild(createElement(child));
-    });
-
-    return el;
 }

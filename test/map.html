@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <button>添加事件</button>
+    <script>
+        // 创建一个Map来存储事件监听器，键为元素，值为另一个Map，其中事件类型为键，监听器函数为值（或数组，因为同一事件可以添加多个）
+        const eventListeners = new WeakMap();
+
+        // 重写addEventListener方法
+        const originalAddEventListener = EventTarget.prototype.addEventListener;
+        EventTarget.prototype.addEventListener = function (type, listener, options) {
+            if (!eventListeners.has(this)) {
+                eventListeners.set(this, new Map());
+            }
+            const elementListeners = eventListeners.get(this);
+            if (!elementListeners.has(type)) {
+                elementListeners.set(type, []);
+            }
+            elementListeners.get(type).push(listener);
+
+            // 调用原生的addEventListener
+            return originalAddEventListener.call(this, type, listener, options);
+        };
+
+        // 然后我们可以实现一个函数来检查某个元素是否已经添加了特定事件
+        function hasEventListener(element, type, listener) {
+            if (eventListeners.has(element)) {
+                const elementListeners = eventListeners.get(element);
+                if (elementListeners.has(type)) {
+                    const listeners = elementListeners.get(type);
+                    // 如果提供了listener，则检查是否包含这个具体的监听器函数；如果不提供，则检查是否有该类型的事件
+                    if (listener) {
+                        return listeners.includes(listener);
+                    } else {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // 使用示例
+        const button = document.querySelector('button');
+        button.addEventListener('click', () => console.log('clicked'));
+
+        // 检查是否添加了click事件（不指定具体的监听器函数）
+        console.log(hasEventListener(button, 'click')); // true
+
+        // 检查是否添加了具体的监听器函数
+        const myListener = () => console.log('clicked');
+        button.addEventListener('click', myListener);
+        console.log(hasEventListener(button, 'click', myListener)); // true
+    </script>
+</body>
+
+</html>

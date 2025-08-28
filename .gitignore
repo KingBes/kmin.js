@@ -9,4 +9,3 @@
 /tests/.phpunit.result.cache
 node_modules
 composer.lock
-/dist
