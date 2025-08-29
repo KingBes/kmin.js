@@ -156,9 +156,9 @@ class KMin extends HTMLElement {
             .replace(/@([a-z]+)="([\w$]+)"/g,
                 (_, p1, p2) => `data-event="${p1},${p2}"`)
             // 安全变量
-            .replace(/\{\{(\w+(\.\w+)*)\}\}/g, "${kmHtml($1)}")
+            .replace(/\{\{([^}]*)\}\}/g, "${kmHtml($1)}")
             // Html内容插入
-            .replace(/\{\#html\s+(\w+(\.\w+)*)\}/g, "${kmHtml($1,false)}")
+            .replace(/\{\#html\s+([^}]*)\}/g, "${kmHtml($1,false)}")
         const str = `let km_tpl = \`${template}\`; return km_tpl;`
         try {
             const args = Object.keys(this);
