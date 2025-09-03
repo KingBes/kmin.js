@@ -43,7 +43,6 @@ class KMin extends HTMLElement {
         let sheet = new CSSStyleSheet();
         sheet.replaceSync(this.css());
         this.shadowRoot.adoptedStyleSheets = [sheet];
-        this.firstRender = true; // 首次渲染
         this.eventListeners = []; // 事件存储器
     }
 
@@ -88,17 +87,14 @@ class KMin extends HTMLElement {
       * @returns {void}
       */
     #_processTemplate(template) {
-        // 首次渲染
-        if (this.firstRender) {
-            this.firstRender = false;
-            this.shadowRoot.innerHTML = this.#tpl(template);
-        } else {
-            domDiff(this.shadowRoot.childNodes, parseHTML(this.#tpl(template)));
-        }
+        // 模板解析
+        this.#domDiff(this.shadowRoot.childNodes, parseHTML(this.#tpl(template)));
         // 事件绑定处理
         let eventHandlers = this.shadowRoot.querySelectorAll('[data-event]');
         eventHandlers.forEach((element) => {
             const data = element.getAttribute('data-event').split(",");
+            // 删除属性
+            element.removeAttribute('data-event');
             if (this.eventListeners.find((item) =>
                 item.element === element
                 && item.type === data[0])) {
@@ -209,6 +205,74 @@ class KMin extends HTMLElement {
         return str.replace(escapePattern, char => escapeMap[char]);
     }
 
+    /**
+     * 对比两个DOM节点列表的差异
+     * 
+     * @param {NodeListOf<ChildNode>} oldDom 旧DOM节点列表
+     * @param {NodeListOf<ChildNode>} newDom 新DOM节点列表
+     */
+    #domDiff(oldDoms, newDoms) {
+        for (let i = 0; i < oldDoms.length; i++) {
+            const oldDom = oldDoms[i];
+            const newDom = newDoms[i];
+            // 节点不存在
+            if (!newDom) {
+                oldDom.removeChild(oldDom.children[i]);
+                continue;
+            }
+            // 文本节点比较
+            if (oldDom.nodeType === 3 || newDom.nodeType === 3) {
+                if (oldDom.nodeValue !== newDom.nodeValue) {
+                    oldDom.nodeValue = newDom.nodeValue;
+                }
+                continue;
+            }
+            // 标签名不同，直接替换
+            if (oldDom.nodeName !== newDom.nodeName) {
+                oldDom.outerHTML = newDom.outerHTML;
+                continue;
+            }
+            // 属性比较
+            const oldAttrs = oldDom.attributes;
+            const newAttrs = newDom.attributes;
+            for (let j = 0; j < oldAttrs.length; j++) {
+                const oldAttr = oldAttrs[j];
+                const newAttr = newAttrs[j];
+                // 属性删除
+                if (!newAttrs[j]) {
+                    oldDom.removeAttribute(oldAttr.name);
+                    continue;
+                }
+                // 修改属性
+                if (oldAttr.name !== newAttr.name) {
+                    oldDom.setAttribute(oldAttr.name, newAttr.value);
+                }
+                if (oldAttr.value !== newAttr.value) {
+                    oldDom.setAttribute(oldAttr.name, newAttr.value);
+                }
+            }
+            // 属性追加
+            for (let j = 0; j < newAttrs.length; j++) {
+                const newAttr = newAttrs[j];
+                if (!oldAttrs[j]) {
+                    oldDom.setAttribute(newAttr.name, newAttr.value);
+                }
+            }
+            // 子节点比较
+            this.#domDiff(oldDom.childNodes, newDom.childNodes);
+        }
+        // 检查新增节点
+        if (newDoms.length > oldDoms.length) {
+            for (let j = oldDoms.length; j < newDoms.length; j++) {
+                if (oldDoms[0]) {
+                    oldDoms[0].parentNode.appendChild(newDoms[j].cloneNode(true));
+                } else {
+                    this.shadowRoot.appendChild(newDoms[j].cloneNode(true));
+                }
+            }
+        }
+    }
+
     css() { return ''; } // 定义样式
     render() { return ''; } // 渲染模板
     disconnectedCallback() { } // 自定义元素从页面中移除时调用
@@ -257,68 +321,4 @@ function parseHTML(htmlString) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlString;
     return tempDiv.childNodes;
-}
-
-/**
- * 对比两个DOM节点列表的差异
- * 
- * @param {NodeListOf<ChildNode>} oldDom 旧DOM节点列表
- * @param {NodeListOf<ChildNode>} newDom 新DOM节点列表
- */
-function domDiff(oldDoms, newDoms) {
-    for (let i = 0; i < oldDoms.length; i++) {
-        const oldDom = oldDoms[i];
-        const newDom = newDoms[i];
-        // 节点不存在
-        if (!newDom) {
-            oldDom.removeChild(oldDom.children[i]);
-            continue;
-        }
-        // 文本节点比较
-        if (oldDom.nodeType === 3 || newDom.nodeType === 3) {
-            if (oldDom.nodeValue !== newDom.nodeValue) {
-                oldDom.nodeValue = newDom.nodeValue;
-            }
-            continue;
-        }
-        // 标签名不同，直接替换
-        if (oldDom.nodeName !== newDom.nodeName) {
-            oldDom.outerHTML = newDom.outerHTML;
-            continue;
-        }
-        // 属性比较
-        const oldAttrs = oldDom.attributes;
-        const newAttrs = newDom.attributes;
-        for (let j = 0; j < oldAttrs.length; j++) {
-            const oldAttr = oldAttrs[j];
-            const newAttr = newAttrs[j];
-            // 属性删除
-            if (!newAttrs[j]) {
-                oldDom.removeAttribute(oldAttr.name);
-                continue;
-            }
-            // 修改属性
-            if (oldAttr.name !== newAttr.name) {
-                oldDom.setAttribute(oldAttr.name, newAttr.value);
-            }
-            if (oldAttr.value !== newAttr.value) {
-                oldDom.setAttribute(oldAttr.name, newAttr.value);
-            }
-        }
-        // 属性追加
-        for (let j = 0; j < newAttrs.length; j++) {
-            const newAttr = newAttrs[j];
-            if (!oldAttrs[j]) {
-                oldDom.setAttribute(newAttr.name, newAttr.value);
-            }
-        }
-        // 子节点比较
-        domDiff(oldDom.childNodes, newDom.childNodes);
-    }
-    // 检查新增节点
-    if (newDoms.length > oldDoms.length) {
-        for (let j = oldDoms.length; j < newDoms.length; j++) {
-            oldDoms[0].parentNode.appendChild(newDoms[j].cloneNode(true));
-        }
-    }
 }
