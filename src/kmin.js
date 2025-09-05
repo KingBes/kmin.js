@@ -64,7 +64,7 @@ class KMin extends HTMLElement {
             },
             set(target, key, val, rec) {
                 Reflect.set(target, key, val, rec);
-                then.updateComponent();
+                then.connectedCallback();
                 return true;
             }
         })
