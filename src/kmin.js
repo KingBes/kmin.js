@@ -4,32 +4,30 @@
  * @param {string} url 组件路径
  * @returns {Promise<void>}
  */
-async function impComp(url) {
+export async function impComp(url) {
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch component: ${response.statusText}`);
-        }
-        const text = await response.text()
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Failed to fetch component: ${res.statusText}`);
+        const text = await res.text()
         const dom = new DOMParser().parseFromString(text, 'text/html');
         const template = text.match(/<template>([\s\S]*?)<\/template>/)[1];
         let script = dom.querySelector('script').innerHTML;
         script = script
-            .replace(/\s*class\s*extends\s*KMin\s*{/g,
-                `class extends KMin { css() { return \`${dom.querySelector('style').innerHTML}\`; } render() { return \`${template}\`; } `);
+            .replace(/\s*extends\s*KMin\s*{/g,
+                ` extends KMin { css() { return \`${dom.querySelector('style').innerHTML}\`; } render() { return \`${template}\`; } `);
         const newScript = document.createElement('script');
         newScript.type = 'module';
         newScript.textContent = script;
-        document.body.appendChild(newScript);
+        document.head.appendChild(newScript);
     } catch (error) {
-        console.error('Error fetching the component:', error);
+        console.error(error);
     }
 }
 
 /**
  * 自定义组件
  */
-class KMin extends HTMLElement {
+export class KMin extends HTMLElement {
 
     /**
      * 自定义元素的构造函数
@@ -64,7 +62,7 @@ class KMin extends HTMLElement {
             },
             set(target, key, val, rec) {
                 Reflect.set(target, key, val, rec);
-                then.connectedCallback();
+                then.updateComponent();
                 return true;
             }
         })
@@ -88,7 +86,7 @@ class KMin extends HTMLElement {
       */
     #_processTemplate(template) {
         // 模板解析
-        this.#domDiff(this.shadowRoot.childNodes, parseHTML(this.#tpl(template)));
+        this.#diff(this.shadowRoot.childNodes, parseHTML(this.#tpl(template)));
         // 事件绑定处理
         let eventHandlers = this.shadowRoot.querySelectorAll('[data-event]');
         eventHandlers.forEach((element) => {
@@ -103,11 +101,7 @@ class KMin extends HTMLElement {
             this.eventListeners.push({
                 element: element,
                 type: data[0],
-                handler: (e) => {
-                    if (this[data[1]]) {
-                        this[data[1]].call(this, e);
-                    }
-                }
+                handler: data[1]
             })
             element.addEventListener(data[0], (e) => {
                 if (this[data[1]]) {
@@ -211,7 +205,7 @@ class KMin extends HTMLElement {
      * @param {NodeListOf<ChildNode>} oldDom 旧DOM节点列表
      * @param {NodeListOf<ChildNode>} newDom 新DOM节点列表
      */
-    #domDiff(oldDoms, newDoms) {
+    #diff(oldDoms, newDoms) {
         for (let i = 0; i < oldDoms.length; i++) {
             const oldDom = oldDoms[i];
             const newDom = newDoms[i];
@@ -235,32 +229,38 @@ class KMin extends HTMLElement {
             // 属性比较
             const oldAttrs = oldDom.attributes;
             const newAttrs = newDom.attributes;
-            for (let j = 0; j < oldAttrs.length; j++) {
-                const oldAttr = oldAttrs[j];
-                const newAttr = newAttrs[j];
-                // 属性删除
-                if (!newAttrs[j]) {
-                    oldDom.removeAttribute(oldAttr.name);
-                    continue;
-                }
-                // 修改属性
-                if (oldAttr.name !== newAttr.name) {
-                    oldDom.setAttribute(oldAttr.name, newAttr.value);
-                }
-                if (oldAttr.value !== newAttr.value) {
-                    oldDom.setAttribute(oldAttr.name, newAttr.value);
+            if (typeof oldAttrs !== "undefined") {
+                for (let j = 0; j < oldAttrs.length; j++) {
+                    const oldAttr = oldAttrs[j];
+                    const newAttr = newAttrs[j];
+                    // 属性删除
+                    if (!newAttrs[j]) {
+                        oldDom.removeAttribute(oldAttr.name);
+                        continue;
+                    }
+                    // 修改属性
+                    if (oldAttr.name !== newAttr.name) {
+                        oldDom.setAttribute(oldAttr.name, newAttr.value);
+                    }
+                    if (oldAttr.value !== newAttr.value) {
+                        oldDom.setAttribute(oldAttr.name, newAttr.value);
+                    }
                 }
             }
             // 属性追加
-            for (let j = 0; j < newAttrs.length; j++) {
-                const newAttr = newAttrs[j];
-                if (!oldAttrs[j]) {
-                    oldDom.setAttribute(newAttr.name, newAttr.value);
+            if (typeof newAttrs !== "undefined") {
+                for (let j = 0; j < newAttrs.length; j++) {
+                    const newAttr = newAttrs[j];
+                    if (!oldAttrs[j]) {
+                        oldDom.setAttribute(newAttr.name, newAttr.value);
+                    }
                 }
             }
+
             // 子节点比较
-            this.#domDiff(oldDom.childNodes, newDom.childNodes);
+            this.#diff(oldDom.childNodes, newDom.childNodes);
         }
+
         // 检查新增节点
         if (newDoms.length > oldDoms.length) {
             for (let j = oldDoms.length; j < newDoms.length; j++) {
@@ -321,4 +321,132 @@ function parseHTML(htmlString) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlString;
     return tempDiv.childNodes;
+}
+
+/**
+ * 事件派发
+ */
+export class Event {
+
+    /**
+     * 初始化
+     * @param {HTMLElement} component 组件实例
+     */
+    constructor(component) {
+        this.component = component;
+        this.Components = new Map();
+        this.eventListeners = new Map();
+    }
+
+    /**
+     * 注册组件事件
+     * 
+     * @param {string} name - 组件名称（标识）
+     * @param {string|HTMLElement} selectorOrElement - 选择器或元素实例
+     * 
+     * @returns {boolean} 是否注册成功
+     */
+    register(name, selectorOrElement) {
+        const element = typeof selectorOrElement === 'string'
+            ? (this.component.shadowRoot || this.component).querySelector(selectorOrElement)
+            : selectorOrElement;
+        if (!element) return false;
+        this.Components.set(name, element);
+        return true;
+    }
+
+    /**
+     * 调用组件方法
+     * 
+     * @param {string} name - 组件名称
+     * @param {string} methodName - 方法名称
+     * @param {...any} args - 方法参数
+     * 
+     * @returns {any} 方法返回值
+     */
+    call(name, methodName, ...args) {
+        const child = this.Components.get(name);
+        if (!child) {
+            console.warn(`Component "${name}" not registered`);
+            return null;
+        };
+        const fn = child[methodName];
+        if (typeof fn !== 'function') {
+            console.warn(`Method "${methodName}" not found in "${name}"`);
+            return null;
+        }
+        try {
+            return fn.apply(child, args);
+        } catch (error) {
+            console.error(`Error calling "${methodName}" on "${name}":`, error);
+        }
+        return null;
+    }
+
+    /**
+     * 监听子组件事件
+     * 
+     * @param {string} name - 组件名称
+     * @param {string} eventName - 事件名称
+     * @param {Function} handler - 事件处理函数
+     * 
+     * @returns {void}
+     */
+    on(name, eventName, handler) {
+        const child = this.Components.get(name);
+        if (!child) return console.warn(`listen event failed, component "${name}" not register`);
+        // 存储事件监听器以便后续移除
+        const key = `${name}-${eventName}`;
+        this.eventListeners.set(key, { child, eventName, handler });
+        child.addEventListener(eventName, handler);
+    }
+
+    /**
+     * 移除组件事件监听
+     * @param {string} name - 组件名称
+     * @param {string} eventName - 事件名称
+     */
+    off(name, eventName) {
+        const key = `${name}-${eventName}`;
+        const listener = this.eventListeners.get(key);
+        if (listener) {
+            listener.child.removeEventListener(listener.eventName, listener.handler);
+            this.eventListeners.delete(key);
+        }
+    }
+
+    /**
+     * 向父组件发送事件
+     * @param {string} eventName - 事件名称
+     * @param {any} data - 要传递的数据
+     */
+    emit(eventName, data) {
+        this.component.dispatchEvent(new CustomEvent(eventName, {
+            detail: data,
+            bubbles: true,
+            composed: true
+        }));
+    }
+
+    /**
+     * 清理所有事件监听和注册
+     */
+    destroy() {
+        // 移除所有事件监听
+        this.eventListeners.forEach(({ child, eventName, handler }) => {
+            child.removeEventListener(eventName, handler);
+        });
+        // 清空存储
+        this.Components.clear();
+        this.eventListeners.clear();
+    }
+}
+
+
+// 判断是否是浏览器环境
+if (typeof window !== 'undefined') {
+    // 浏览器环境，挂载到window
+    window.KMin = KMin;
+    window.impComp = impComp;
+    window.Event = Event;
 }

@@ -7,16 +7,16 @@
     <title>Document</title>
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <!-- <script src="../dist/kmin.min.js"></script> -->
-    <script src="../src/kmin.js"></script>
+    <script type="module" src="../src/kmin.js"></script>
 </head>
 
 <body>
     <demo-ui></demo-ui>
-    
+
     <script type="module">
-        
+
         impComp('./php-demo.html');
-        
+
         customElements.define('demo-ui', class extends KMin {
 
             constructor() {
@@ -25,7 +25,8 @@
                 this.data = this.state({
                     count: 0,
                     name: 'kmin',
-                    btnNum: 0
+                    btnNum: 3,
+                    decrement: "decrement"
                 })
             }
 
@@ -41,8 +42,7 @@
             }
             // 重置
             reset() {
-                this.data.count = 0;
-                console.log(this.data.count)
+                this.data.decrement = "null"
             }
             // css
             css() {
@@ -58,7 +58,10 @@
                 <div class="counter">
                     <button @click="decrement">-</button>
                     <span>Count: {{data.count}}</span>
+                    <span>Name: {{data.btnNum}}</span>
+                    {#for let i = 0; i < data.btnNum; i++}
                     <button @click="increment">+</button>
+                    {/for}
                 </div>
                 <button @click="reset">Reset</button>
                 `;
