@@ -103,9 +103,9 @@ export class KMin extends HTMLElement {
                 type: data[0],
                 handler: data[1]
             })
-            element.addEventListener(data[0], (e) => {
+            element.addEventListener(data[0], () => {
                 if (this[data[1]]) {
-                    this[data[1]].call(this, e);
+                    this[data[1]].call(this, element);
                 }
             })
         })
@@ -142,13 +142,13 @@ export class KMin extends HTMLElement {
             // each
             .replace(/\{\#each\s+([^}]+)\s+as\s+([^}]+)}/g, '`;$1.forEach(function($2){km_tpl+=`')
             .replace(/\{\/each\}/g, '`;});km_tpl+=`')
-            // 事件绑定
-            .replace(/@([a-z]+)="([\w$]+)"/g,
-                (_, p1, p2) => `data-event="${p1},${p2}"`)
             // 安全变量
             .replace(/\{\{([^}]*)\}\}/g, "${kmHtml($1)}")
             // Html内容插入
             .replace(/\{\#html\s+([^}]*)\}/g, "${kmHtml($1,false)}")
+            // 事件绑定
+            .replace(/@([a-z]+)="([\w$]+)"/g,
+                (_, p1, p2) => `data-event="${p1},${p2}"`)
         const str = `let km_tpl = \`${template}\`; return km_tpl;`
         try {
             const args = Object.keys(this);
