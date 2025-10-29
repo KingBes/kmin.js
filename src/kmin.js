@@ -1,26 +1,17 @@
+// 已注册组件列表
+let Comps = [];
+
 /**
- * 引入组件模板
+ * 注册自定义组件   
  * 
- * @param {string} url 组件路径
- * @returns {Promise<void>}
+ * @param {string} tagName 标签名称
+ * @param {class} comp 组件类
+ * @returns {void}
  */
-export async function impComp(url) {
-    try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Failed to fetch component: ${res.statusText}`);
-        const text = await res.text()
-        const dom = new DOMParser().parseFromString(text, 'text/html');
-        const template = text.match(/<template>([\s\S]*?)<\/template>/)[1];
-        let script = dom.querySelector('script').innerHTML;
-        script = script
-            .replace(/\s*extends\s*KMin\s*{/g,
-                ` extends KMin { css() { return \`${dom.querySelector('style').innerHTML}\`; } render() { return \`${template}\`; } `);
-        const newScript = document.createElement('script');
-        newScript.type = 'module';
-        newScript.textContent = script;
-        document.head.appendChild(newScript);
-    } catch (error) {
-        console.error(error);
+export function regComp(tagName, comp) {
+    if (!Comps.find((item) => item === tagName)) {
+        Comps.push(tagName);
+        customElements.define(tagName, comp);
     }
 }
 
@@ -28,6 +19,9 @@ export async function impComp(url) {
  * 自定义组件
  */
 export class KMin extends HTMLElement {
+
+    // 组件版本号
+    static version = 'v0.0.5';
 
     /**
      * 自定义元素的构造函数
@@ -447,6 +441,6 @@ export class Event {
 if (typeof window !== 'undefined') {
     // 浏览器环境，挂载到window
     window.KMin = KMin;
-    window.impComp = impComp;
+    window.regComp = regComp;
     window.Event = Event;
 }
