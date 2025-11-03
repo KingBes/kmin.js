@@ -97,9 +97,9 @@ export class KMin extends HTMLElement {
                 type: data[0],
                 handler: data[1]
             })
-            element.addEventListener(data[0], () => {
+            element.addEventListener(data[0], (e) => {
                 if (this[data[1]]) {
-                    this[data[1]].call(this, element);
+                    this[data[1]].call(this, e, element);
                 }
             })
         })
