@@ -14,53 +14,48 @@
     <demo-ui></demo-ui>
 
     <script type="module">
-
-        regComp('demo-ui', class extends KMin {
-
-            constructor() {
-                super();
-                // 定义动态数据
-                this.data = this.state({
-                    count: 0,
-                    name: 'kmin',
-                })
-            }
-
-            // 增加
-            increment() {
-                this.data.count++;
-                console.log(this.data.count)
-            }
-            // 减少
-            decrement() {
-                this.data.count--;
-                console.log(this.data.count)
-            }
-            // 重置
-            reset() {
-                this.data.count = 0;
-            }
-            // css
-            css() {
-                return `
-                span{
-                    color: red;
-                }
-                `
-            }
-            // 渲染
-            render() {
+        
+        regComp('demo-ui', function () {
+            // 响应式状态
+            let a = this.reactive({
+                count: 0,
+            });
+            // 响应式引用
+            let name = this.ref('kmin');
+            // 渲染函数
+            this.render = () => {
                 return `
                 <div class="counter">
                     <button data-event="click,decrement">-</button>
-                    <span>Count: ${this.data.count}</span>
-                    <span>Name: ${this.data.name}</span>
+                    <span>Count: ${a.count}</span>
+                    <span>Name: ${name.value}</span>
                     <button data-event="click,increment">+</button>
                 </div>
                 <button data-event="click,reset">Reset</button>
                 `;
             }
-        });
+            // 增加
+            this.increment = () => {
+                a.count++;
+                console.log(a.count)
+            }
+            // 减少
+            this.decrement = () => {
+                a.count--;
+                console.log(a.count)
+            }
+            // 重置
+            this.reset = () => {
+                a.count = 0;
+            }
+            // css
+            this.css = () => {
+                return `
+                span{
+                    color: red;
+                }`
+            }
+        })
     </script>
 </body>
 

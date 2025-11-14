@@ -11,8 +11,26 @@ let Comps = [];
 export function regComp(tagName, comp) {
     if (!Comps.find((item) => item === tagName)) {
         Comps.push(tagName);
-        customElements.define(tagName, comp);
+        customElements.define(tagName,
+            class extends KMin {
+                constructor() {
+                    super();
+                    comp.call(this);
+                }
+            }
+        );
     }
+}
+
+/**
+ * 异步导入自定义组件
+ * 
+ * @param {string} url 组件URL
+ */
+export async function impComp(url) {
+    let tagName = url.split('/').pop().split('.')[0];
+    const comp = await import(url);
+    regComp(tagName, comp.default);
 }
 
 /**
@@ -31,28 +49,24 @@ export class KMin extends HTMLElement {
         super();
         // 创建一个 Shadow DOM
         this.attachShadow({ mode: "open" });
-        // 渲染样式
-        let sheet = new CSSStyleSheet();
-        sheet.replaceSync(this.css());
-        this.shadowRoot.adoptedStyleSheets = [sheet];
         this.eventListeners = []; // 事件存储器
     }
 
     /**
-     * 定义响应式属性
+     * 定义响应式
      * 
-     * @param {Object} value - 组件状态数据
+     * @param {object} vars - 组件状态数据
      * @returns {Proxy} - 响应式代理对象
      */
-    state(value) {
+    reactive(vars) {
         const then = this;
-        return new Proxy(value, {
+        return new Proxy(vars, {
             get(target, key, rec) {
-                const value = Reflect.get(target, key, rec);
-                if (typeof value === 'object' && value !== null) {
-                    return then.state(value);
+                const vars = Reflect.get(target, key, rec);
+                if (typeof vars === 'object' && vars !== null) {
+                    return then.state(vars);
                 }
-                return value;
+                return vars;
             },
             set(target, key, val, rec) {
                 Reflect.set(target, key, val, rec);
@@ -60,6 +74,27 @@ export class KMin extends HTMLElement {
                 return true;
             }
         })
+    }
+
+    /**
+     * 定义响应式引用
+     * 
+     * @param {*} vars - 组件状态数据
+     * @returns {Proxy} - 响应式引用对象
+     */
+    ref(vars) {
+        const then = this;
+        return {
+            get value() {
+                return vars;
+            },
+            set value(newVal) {
+                if (newVal !== vars) {
+                    vars = newVal;
+                    then.updateComponent();
+                }
+            }
+        }
     }
 
     /**
@@ -112,6 +147,10 @@ export class KMin extends HTMLElement {
      */
     connectedCallback() {
         this.updateComponent();
+        // 渲染样式
+        let sheet = new CSSStyleSheet();
+        sheet.replaceSync(this.css());
+        this.shadowRoot.adoptedStyleSheets = [sheet];
     }
 
     /**
