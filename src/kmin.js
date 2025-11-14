@@ -21,7 +21,7 @@ export function regComp(tagName, comp) {
 export class KMin extends HTMLElement {
 
     // 组件版本号
-    static version = 'v0.0.5';
+    static version = 'v0.0.6';
 
     /**
      * 自定义元素的构造函数
@@ -80,7 +80,7 @@ export class KMin extends HTMLElement {
       */
     #_processTemplate(template) {
         // 模板解析
-        this.#diff(this.shadowRoot.childNodes, parseHTML(this.#tpl(template)));
+        this.#diff(this.shadowRoot.childNodes, parseHTML(template));
         // 事件绑定处理
         let eventHandlers = this.shadowRoot.querySelectorAll('[data-event]');
         eventHandlers.forEach((element) => {
@@ -112,85 +112,6 @@ export class KMin extends HTMLElement {
      */
     connectedCallback() {
         this.updateComponent();
-    }
-
-    /**
-     * 模板渲染
-     * 
-     * @param {string} template - 模板字符串
-     * @returns {string} 渲染后的HTML字符串
-     */
-    #tpl(template) {
-        template = template
-            // if if-else else
-            .replace(/\{\#if\s+([^}]*)\}/g,
-                (_, p1) => '`;if(' + kmComparison(p1) + ') {km_tpl+=`')
-            .replace(/\{\#else\s+if\s+([^}]*)\}/g,
-                (_, p1) => '`;} else if(' + kmComparison(p1) + ') {km_tpl+=`')
-            .replace(/\{\#else\}/g, '`;} else {km_tpl+=`')
-            .replace(/\{\/if\}/g, '`;}km_tpl+=`')
-            // for
-            .replace(/\{\#for\s+([^}]*)}/g,
-                (_, p1) => '`;for(' + kmComparison(p1) + ') {km_tpl+=`')
-            .replace(/\{\/for\}/g, '`;}km_tpl+=`')
-            // each
-            .replace(/\{\#each\s+([^}]+)\s+as\s+([^}]+)}/g, '`;$1.forEach(function($2){km_tpl+=`')
-            .replace(/\{\/each\}/g, '`;});km_tpl+=`')
-            // 安全变量
-            .replace(/\{\{([^}]*)\}\}/g, "${kmHtml($1)}")
-            // Html内容插入
-            .replace(/\{\#html\s+([^}]*)\}/g, "${kmHtml($1,false)}")
-            // 事件绑定
-            .replace(/@([a-z]+)="([\w$]+)"/g,
-                (_, p1, p2) => `data-event="${p1},${p2}"`)
-        const str = `let km_tpl = \`${template}\`; return km_tpl;`
-        try {
-            const args = Object.keys(this);
-            args.push('kmHtml');
-            const fn = new Function(...args, str);
-            return fn(...args.map(key => this[key]));
-        } catch (e) {
-            throw new Error('Template error, ' + e.message);
-        }
-    }
-
-    /**
-     * 转义HTML特殊字符
-     * 
-     * @param {any} input - 输入字符串
-     * @param {boolean} is - 是否转义
-     * 
-     * @returns {string} 转义后的字符串
-     */
-    kmHtml(input, is = true) {
-        // 处理空值和函数
-        if (input == null) return '';
-        if (typeof input === 'function') return kmHtml(input());
-        // 处理数组
-        if (Array.isArray(input)) {
-            const len = input.length;
-            // 预初始化数组避免push开销
-            const escaped = new Array(len);
-            for (let i = 0; i < len; i++) {
-                escaped[i] = kmHtml(input[i]);
-            }
-            return escaped.join(',');
-        }
-        // 转换非字符串为字符串
-        const str = String(input);
-        if (!is) return str;
-        // 转义HTML特殊字符
-        const escapeMap = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        const escapePattern = /[&<>"']/g;
-        // 快速检查是否需要转义
-        if (!escapePattern.test(str)) return str;
-        return str.replace(escapePattern, char => escapeMap[char]);
     }
 
     /**
