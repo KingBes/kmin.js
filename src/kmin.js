@@ -116,6 +116,15 @@ export class KMin extends HTMLElement {
     #_processTemplate(template) {
         // 模板解析
         this.#diff(this.shadowRoot.childNodes, parseHTML(template));
+        this.#_processEvent();// 处理事件绑定
+    }
+
+    /**
+     * 处理事件绑定
+     * 
+     * @returns {void}
+     */
+    #_processEvent() {
         // 事件绑定处理
         let eventHandlers = this.shadowRoot.querySelectorAll('[data-event]');
         eventHandlers.forEach((element) => {
@@ -138,19 +147,6 @@ export class KMin extends HTMLElement {
                 }
             })
         })
-    }
-
-    /**
-     * 自定义元素添加至页面时调用
-     * 
-     * @returns {void}
-     */
-    connectedCallback() {
-        this.updateComponent();
-        // 渲染样式
-        let sheet = new CSSStyleSheet();
-        sheet.replaceSync(this.css());
-        this.shadowRoot.adoptedStyleSheets = [sheet];
     }
 
     /**
@@ -227,41 +223,23 @@ export class KMin extends HTMLElement {
         }
     }
 
+    /**
+     * 自定义元素添加至页面时调用
+     * 
+     * @returns {void}
+     */
+    connectedCallback() {
+        this.updateComponent();
+        // 渲染样式
+        let sheet = new CSSStyleSheet();
+        sheet.replaceSync(this.css());
+        this.shadowRoot.adoptedStyleSheets = [sheet];
+    }
     css() { return ''; } // 定义样式
     render() { return ''; } // 渲染模板
     disconnectedCallback() { } // 自定义元素从页面中移除时调用
     adoptedCallback() { } // 自定义元素移动至新页面时调用
     attributeChangedCallback(name, oldValue, newValue) { } // 自定义元素的属性变更时调用
-}
-
-/**
- * 比较表达式解析
- * 
- * @param {string} exp - 表达式字符串
- * 
- * @returns {string} 表达式结果
- */
-function kmComparison(exp) {
-    const map = {
-        'eq': '==',
-        'neq': '!=',
-        'gt': '>',
-        'egt': '>=',
-        'lt': '<',
-        'elt': '<=',
-        'heq': '===',
-        'nheq': '!=='
-    };
-    // 按标识符长度降序排序（避免短标识符先匹配长标识符的部分内容）
-    const keys = Object.keys(map).sort((a, b) => b.length - a.length);
-    // 转义特殊字符并构建匹配模式
-    const pattern = keys
-        .map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) // 正则转义
-        .join('|');
-    // 创建单词边界匹配的正则表达式
-    const regex = new RegExp(`\\b(${pattern})\\b`, 'g');
-    // 执行替换
-    return exp.replace(regex, match => map[match]);
 }
 
 /**
@@ -402,5 +380,6 @@ if (typeof window !== 'undefined') {
     // 浏览器环境，挂载到window
     window.KMin = KMin;
     window.regComp = regComp;
+    window.impComp = impComp;
     window.Event = Event;
 }

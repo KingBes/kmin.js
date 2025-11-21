@@ -14,7 +14,7 @@
     <demo-ui></demo-ui>
 
     <script type="module">
-        
+
         regComp('demo-ui', function () {
             // 响应式状态
             let a = this.reactive({
@@ -32,7 +32,12 @@
                     <button data-event="click,increment">+</button>
                 </div>
                 <button data-event="click,reset">Reset</button>
+                <input type="text" data-event="input,inputEvent">
                 `;
+            }
+            // 输入事件
+            this.inputEvent = (e) => {
+                console.log(e.target.value);
             }
             // 增加
             this.increment = () => {
