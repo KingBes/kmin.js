@@ -39,7 +39,7 @@ export async function impComp(url) {
 export class KMin extends HTMLElement {
 
     // 组件版本号
-    static version = 'v0.0.6';
+    static version = 'v0.0.7';
 
     /**
      * 自定义元素的构造函数
@@ -64,7 +64,7 @@ export class KMin extends HTMLElement {
             get(target, key, rec) {
                 const vars = Reflect.get(target, key, rec);
                 if (typeof vars === 'object' && vars !== null) {
-                    return then.state(vars);
+                    return then.reactive(vars);
                 }
                 return vars;
             },
