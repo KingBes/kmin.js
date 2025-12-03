@@ -37,10 +37,6 @@ export async function impComp(url) {
  * 自定义组件
  */
 export class KMin extends HTMLElement {
-
-    // 组件版本号
-    static version = 'v0.0.7';
-
     /**
      * 自定义元素的构造函数
      */
